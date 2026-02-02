@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metric Clock & Converter</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #222;
+            color: #eee;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* --- CLOCK STYLES --- */
+        .clock {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            border: 8px solid #eee;
+            border-radius: 50%;
+            background: #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            flex-shrink: 0;
+        }
+
+        .center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 12px;
+            height: 12px;
+            background: #e74c3c;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .number {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            pointer-events: none;
+        }
+
+        .hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            border-radius: 4px;
+            z-index: 5;
+            transition: transform 0.05s linear;
+        }
+
+        .hour-hand { width: 6px; height: 25%; background: #fff; }
+        .minute-hand { width: 4px; height: 35%; background: #aaa; }
+        .second-hand { width: 2px; height: 40%; background: #e74c3c; }
+
+        .digital {
+            margin-top: 30px;
+            font-size: 2.5rem;
+            background: #111;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        
+        .label { margin-top: 5px; font-size: 0.8rem; color: #888; margin-bottom: 40px; }
+
+        /* --- CONVERTER STYLES --- */
+        .converter-box {
+            background: #333;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #555;
+            text-align: center;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .converter-title {
+            margin: 0 0 15px 0;
+            font-size: 1rem;
+            color: #e74c3c;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        input[type="number"] {
+            width: 60px;
+            padding: 10px;
+            background: #222;
+            border: 1px solid #555;
+            color: #fff;
+            font-family: inherit;
+            font-size: 1.2rem;
+            text-align: center;
+            border-radius: 4px;
+        }
+
+        /* Remove spinner arrows from inputs */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        .result {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            padding: 10px;
+            background: #111;
+            border-radius: 4px;
+            border: 1px dashed #555;
+        }
+        
+        .result-label { font-size: 0.8rem; color: #888; margin-top: 5px;}
+
+    </style>
+</head>
+<body>
+
+    <div class="clock" id="clock-face">
+        <div class="center-dot"></div>
+        <div class="hand hour-hand" id="hour-hand"></div>
+        <div class="hand minute-hand" id="min-hand"></div>
+        <div class="hand second-hand" id="sec-hand"></div>
+    </div>
+
+    <div class="digital" id="digital-display">0:00:00</div>
+    <div class="label">METRIC TIME (LIVE)</div>
+
+    <div class="converter-box">
+        <h3 class="converter-title">Standard to Metric</h3>
+        
+        <div class="input-group">
+            <input type="number" id="in-h" placeholder="HH" min="0" max="23" oninput="convertTime()">
+            <span>:</span>
+            <input type="number" id="in-m" placeholder="MM" min="0" max="59" oninput="convertTime()">
+            <span>:</span>
+            <input type="number" id="in-s" placeholder="SS" min="0" max="59" oninput="convertTime()">
+        </div>
+
+        <div class="result" id="conversion-result">_ : __ : __</div>
+        <div class="result-label">METRIC EQUIVALENT</div>
+    </div>
+
+    <script>
+        // --- CLOCK LOGIC ---
+        function updateClock() {
+            const now = new Date();
+            const totalStandardMs = (now.getHours() * 3600000) + (now.getMinutes() * 60000) + (now.getSeconds() * 1000) + now.getMilliseconds();
+            
+            // Metric Calculation
+            const totalMetricMs = totalStandardMs / 0.864;
+            const metricHours = Math.floor(totalMetricMs / 10000000); 
+            const rem1 = totalMetricMs % 10000000;
+            const metricMins = Math.floor(rem1 / 100000);
+            const rem2 = rem1 % 100000;
+            const metricSecs = Math.floor(rem2 / 1000);
+
+            // Analog Rotation (+180 for bottom zero)
+            const hourDeg = ((metricHours + metricMins/100) * 36) + 180;
+            const minDeg = ((metricMins + metricSecs/100) * 3.6) + 180;
+            const secDeg = (metricSecs * 3.6) + 180;
+
+            document.getElementById('hour-hand').style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
+            document.getElementById('min-hand').style.transform = `translateX(-50%) rotate(${minDeg}deg)`;
+            document.getElementById('sec-hand').style.transform = `translateX(-50%) rotate(${secDeg}deg)`;
+
+            // Digital Update
+            document.getElementById('digital-display').innerText = 
+                `${metricHours}:${metricMins.toString().padStart(2, '0')}:${metricSecs.toString().padStart(2, '0')}`;
+        }
+
+        // Generate Clock Numbers
+        const clockFace = document.getElementById('clock-face');
+        for (let i = 0; i < 10; i++) {
+            const number = document.createElement('div');
+            number.className = 'number';
+            const rotation = (i * 36) + 180; 
+            number.style.transform = `rotate(${rotation}deg)`;
+            
+            const inner = document.createElement('div');
+            inner.innerText = i;
+            inner.style.position = 'absolute';
+            inner.style.top = '10px';
+            inner.style.left = '50%';
+            inner.style.transform = `translateX(-50%) rotate(-${rotation}deg)`;
+            
+            number.appendChild(inner);
+            clockFace.appendChild(number);
+        }
+
+        setInterval(updateClock, 50);
+        updateClock();
+
+        // --- CONVERTER LOGIC ---
+        function convertTime() {
+            let h = parseInt(document.getElementById('in-h').value) || 0;
+            let m = parseInt(document.getElementById('in-m').value) || 0;
+            let s = parseInt(document.getElementById('in-s').value) || 0;
+
+            // Clamp values
+            if (h > 23) h = 23; if (h < 0) h = 0;
+            if (m > 59) m = 59; if (m < 0) m = 0;
+            if (s > 59) s = 59; if (s < 0) s = 0;
+
+            const totalStandardMs = (h * 3600000) + (m * 60000) + (s * 1000);
+            const totalMetricMs = totalStandardMs / 0.864;
+
+            const mH = Math.floor(totalMetricMs / 10000000); 
+            const rem1 = totalMetricMs % 10000000;
+            const mM = Math.floor(rem1 / 100000);
+            const rem2 = rem1 % 100000;
+            const mS = Math.floor(rem2 / 1000);
+
+            document.getElementById('conversion-result').innerText = 
+                `${mH} : ${mM.toString().padStart(2, '0')} : ${mS.toString().padStart(2, '0')}`;
+        }
+    </script>
+</body>
+</html>
